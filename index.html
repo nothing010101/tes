@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Pull Light Login</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --off-bg: #0a0a0f;
+    --on-bg: #1a1520;
+    --lamp-shade: #e8d5a3;
+    --gold: #c9a84c;
+    --gold-light: #f0c96e;
+    --cord: #b8a898;
+    --form-bg: rgba(255,255,255,0.06);
+    --text: #f0ead6;
+    --text-dim: #8a7f70;
+    --input-bg: rgba(255,255,255,0.04);
+    --input-border: rgba(201,168,76,0.3);
+    --glow: rgba(240,201,110,0.15);
+  }
+
+  body {
+    font-family: 'Jost', sans-serif;
+    background: var(--off-bg);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    transition: background 0.8s ease;
+    cursor: default;
+  }
+
+  body.lit {
+    background: var(--on-bg);
+  }
+
+  /* ── CEILING RAY ── */
+  .ceiling-ray {
+    position: fixed;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 2px;
+    height: 60px;
+    background: linear-gradient(to bottom, #555, #888);
+    z-index: 10;
+  }
+
+  /* ── LAMP WRAPPER ── */
+  .lamp-wrapper {
+    position: fixed;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    z-index: 10;
+    user-select: none;
+  }
+
+  /* stem from ceiling */
+  .lamp-stem {
+    width: 3px;
+    height: 80px;
+    background: linear-gradient(to bottom, #666, #999);
+    border-radius: 2px;
+  }
+
+  /* lamp shade */
+  .lamp-shade {
+    width: 90px;
+    height: 55px;
+    background: linear-gradient(160deg, #f5e6bb 0%, #c9a84c 50%, #8a6820 100%);
+    clip-path: polygon(10% 0%, 90% 0%, 100% 100%, 0% 100%);
+    border-radius: 0 0 8px 8px;
+    position: relative;
+    filter: brightness(0.4);
+    transition: filter 0.6s ease;
+    box-shadow: 0 0 0px transparent;
+  }
+
+  .lamp-shade::after {
+    content: '';
+    position: absolute;
+    bottom: -6px; left: 50%;
+    transform: translateX(-50%);
+    width: 94px;
+    height: 8px;
+    background: linear-gradient(to right, #8a6820, #e8d090, #8a6820);
+    border-radius: 4px;
+  }
+
+  body.lit .lamp-shade {
+    filter: brightness(1.1);
+    box-shadow: 0 20px 80px 10px rgba(240,190,80,0.45), 0 0 30px 5px rgba(240,190,80,0.3);
+  }
+
+  /* bulb glow */
+  .bulb {
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: #555;
+    margin-top: -4px;
+    transition: background 0.6s, box-shadow 0.6s;
+    position: relative;
+    z-index: 2;
+  }
+
+  body.lit .bulb {
+    background: #fff9c4;
+    box-shadow: 0 0 12px 4px #ffe066, 0 0 30px 10px rgba(255,220,80,0.5);
+  }
+
+  /* ── CORD ── */
+  .cord-container {
+    position: fixed;
+    top: 120px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    z-index: 20;
+  }
+
+  .cord {
+    width: 2px;
+    height: 70px;
+    background: repeating-linear-gradient(
+      to bottom,
+      var(--cord) 0px,
+      var(--cord) 4px,
+      #6b5e50 4px,
+      #6b5e50 8px
+    );
+    transform-origin: top center;
+    transition: transform 0.15s ease;
+  }
+
+  .cord-container:hover .cord { transform: scaleY(1.05); }
+  .cord-container.pulling .cord { transform: scaleY(1.18) translateY(8px); }
+
+  .cord-pull {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #d4b87a, #8a6820);
+    border: 2px solid #c9a84c;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+    transition: transform 0.15s;
+  }
+
+  .cord-container:hover .cord-pull { transform: scale(1.15); }
+
+  /* pull hint text */
+  .pull-hint {
+    margin-top: 10px;
+    font-family: 'Jost', sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    opacity: 0.7;
+    animation: hint-pulse 2s ease-in-out infinite;
+    transition: opacity 0.4s;
+  }
+
+  body.lit .pull-hint { opacity: 0; pointer-events: none; }
+
+  @keyframes hint-pulse {
+    0%, 100% { opacity: 0.4; transform: translateY(0); }
+    50% { opacity: 0.9; transform: translateY(3px); }
+  }
+
+  /* ── FLOOR GLOW ── */
+  .floor-glow {
+    position: fixed;
+    bottom: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 500px; height: 200px;
+    background: radial-gradient(ellipse, rgba(240,190,80,0.12) 0%, transparent 70%);
+    opacity: 0;
+    transition: opacity 0.8s ease;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  body.lit .floor-glow { opacity: 1; }
+
+  /* ── LIGHT CONE ── */
+  .light-cone {
+    position: fixed;
+    top: 155px; left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 200px solid transparent;
+    border-right: 200px solid transparent;
+    border-top: 400px solid rgba(240,200,80,0.04);
+    opacity: 0;
+    transition: opacity 0.8s ease 0.2s;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  body.lit .light-cone { opacity: 1; }
+
+  /* ── LOGIN CARD ── */
+  .login-wrapper {
+    position: relative;
+    z-index: 5;
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+    transition: opacity 0.7s ease 0.4s, transform 0.7s cubic-bezier(0.34,1.56,0.64,1) 0.4s;
+    pointer-events: none;
+  }
+
+  body.lit .login-wrapper {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: all;
+  }
+
+  .login-card {
+    width: 340px;
+    padding: 44px 36px 40px;
+    background: var(--form-bg);
+    border: 1px solid rgba(201,168,76,0.2);
+    border-radius: 16px;
+    backdrop-filter: blur(18px);
+    box-shadow:
+      0 30px 80px rgba(0,0,0,0.5),
+      0 0 0 1px rgba(255,255,255,0.04) inset,
+      0 1px 0 rgba(255,255,255,0.08) inset;
+    margin-top: 40px;
+  }
+
+  .login-card h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 28px;
+    font-weight: 400;
+    color: var(--text);
+    text-align: center;
+    margin-bottom: 6px;
+    letter-spacing: 0.02em;
+  }
+
+  .login-card .subtitle {
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-dim);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 32px;
+  }
+
+  .field {
+    margin-bottom: 18px;
+  }
+
+  .field label {
+    display: block;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+
+  .field input {
+    width: 100%;
+    padding: 12px 16px;
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'Jost', sans-serif;
+    font-size: 14px;
+    font-weight: 300;
+    outline: none;
+    transition: border-color 0.3s, box-shadow 0.3s;
+  }
+
+  .field input::placeholder { color: rgba(138,127,112,0.5); }
+
+  .field input:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(201,168,76,0.12);
+  }
+
+  .btn-signin {
+    width: 100%;
+    margin-top: 28px;
+    padding: 14px;
+    background: linear-gradient(135deg, #c9a84c 0%, #f0c96e 50%, #c9a84c 100%);
+    background-size: 200% 100%;
+    border: none;
+    border-radius: 8px;
+    color: #1a1208;
+    font-family: 'Jost', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background-position 0.4s, transform 0.15s, box-shadow 0.3s;
+    box-shadow: 0 4px 20px rgba(201,168,76,0.3);
+  }
+
+  .btn-signin:hover {
+    background-position: 100% 0;
+    box-shadow: 0 6px 28px rgba(201,168,76,0.5);
+    transform: translateY(-1px);
+  }
+
+  .btn-signin:active { transform: translateY(1px); }
+
+  .login-footer {
+    text-align: center;
+    margin-top: 20px;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .login-footer a {
+    color: var(--gold);
+    text-decoration: none;
+    letter-spacing: 0.05em;
+  }
+
+  .login-footer a:hover { color: var(--gold-light); }
+
+  /* ── PARTICLES ── */
+  .dust {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 2;
+    overflow: hidden;
+  }
+
+  .dust span {
+    position: absolute;
+    width: 2px; height: 2px;
+    background: rgba(240,200,80,0.5);
+    border-radius: 50%;
+    opacity: 0;
+    transition: opacity 0.5s;
+  }
+
+  body.lit .dust span { animation: float-dust 4s ease-in infinite; }
+
+  @keyframes float-dust {
+    0% { opacity: 0; transform: translateY(0) translateX(0); }
+    20% { opacity: 0.6; }
+    100% { opacity: 0; transform: translateY(-120px) translateX(var(--dx, 20px)); }
+  }
+</style>
+</head>
+<body>
+
+<div class="ceiling-ray"></div>
+
+<div class="lamp-wrapper">
+  <div class="lamp-stem"></div>
+  <div class="lamp-shade"></div>
+  <div class="bulb"></div>
+</div>
+
+<div class="cord-container" id="cord">
+  <div class="cord"></div>
+  <div class="cord-pull"></div>
+  <div class="pull-hint">pull</div>
+</div>
+
+<div class="light-cone"></div>
+<div class="floor-glow"></div>
+
+<div class="dust" id="dust"></div>
+
+<div class="login-wrapper" id="loginWrapper">
+  <div class="login-card">
+    <h1>Welcome Back</h1>
+    <p class="subtitle">Sign in to continue</p>
+
+    <div class="field">
+      <label>Username</label>
+      <input type="text" placeholder="your username" autocomplete="off">
+    </div>
+
+    <div class="field">
+      <label>Password</label>
+      <input type="password" placeholder="••••••••">
+    </div>
+
+    <button class="btn-signin">Sign In</button>
+
+    <p class="login-footer">
+      No account? <a href="#">Create one</a>
+    </p>
+  </div>
+</div>
+
+<script>
+  const cord = document.getElementById('cord');
+  const body = document.body;
+  const dustContainer = document.getElementById('dust');
+  let isLit = false;
+
+  // create dust particles
+  for (let i = 0; i < 18; i++) {
+    const s = document.createElement('span');
+    const x = 30 + Math.random() * 340;
+    const y = 160 + Math.random() * 200;
+    const dx = (Math.random() - 0.5) * 60;
+    s.style.cssText = `left:${x}px; top:${y}px; --dx:${dx}px; animation-delay:${Math.random()*3}s; animation-duration:${3+Math.random()*2}s;`;
+    dustContainer.appendChild(s);
+  }
+
+  cord.addEventListener('mousedown', () => cord.classList.add('pulling'));
+  cord.addEventListener('touchstart', () => cord.classList.add('pulling'), { passive: true });
+
+  function toggleLight() {
+    cord.classList.remove('pulling');
+    isLit = !isLit;
+    body.classList.toggle('lit', isLit);
+  }
+
+  cord.addEventListener('mouseup', toggleLight);
+  cord.addEventListener('touchend', toggleLight);
+  cord.addEventListener('mouseleave', () => cord.classList.remove('pulling'));
+</script>
+</body>
+</html>
